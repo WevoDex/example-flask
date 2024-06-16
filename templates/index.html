@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Key Management</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        form {
+            margin-bottom: 20px;
+        }
+        input, textarea, button {
+            display: block;
+            margin-bottom: 10px;
+            padding: 10px;
+            font-size: 16px;
+        }
+        textarea {
+            width: 100%;
+            height: 100px;
+        }
+        .key-list {
+            margin-top: 20px;
+        }
+        .key-list ul {
+            list-style: none;
+            padding: 0;
+        }
+        .key-list li {
+            background: #f4f4f4;
+            padding: 10px;
+            margin-bottom: 5px;
+            border: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="mt-5">API Key Management</h1>
+        
+        <form action="/add_key" method="post">
+            <h2>Add a Single API Key</h2>
+            <input type="text" name="key" placeholder="Enter API key" required>
+            <button type="submit" class="btn btn-primary">Add Key</button>
+        </form>
+        
+        <form action="/add_keys_bulk" method="post">
+            <h2>Add API Keys in Bulk</h2>
+            <textarea name="keys" placeholder="Enter API keys, separated by space or newline"></textarea>
+            <button type="submit" class="btn btn-primary">Add Keys</button>
+        </form>
+        
+        <form id="checkIpForm">
+            <h2>Check IP</h2>
+            <input type="text" id="proxy_ip" name="proxy_ip" placeholder="Enter Proxy IP" required>
+            <button type="button" class="btn btn-primary" onclick="checkIp()">Check IP</button>
+        </form>
+        
+        <div id="result"></div>
+        
+        <div class="key-list">
+            <h2>Stored API Keys</h2>
+            <ul>
+                {% for key in api_keys %}
+                    <li>
+                        {{ key }}
+                        <form action="/edit_key" method="post" style="display:inline;">
+                            <input type="hidden" name="old_key" value="{{ key }}">
+                            <input type="text" name="new_key" placeholder="New Key" required>
+                            <button type="submit" class="btn btn-secondary">Edit</button>
+                        </form>
+                        <form action="/delete_key" method="post" style="display:inline;">
+                            <input type="hidden" name="key" value="{{ key }}">
+                            <button type="submit" class="btn btn-danger">Delete</button>
+                        </form>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+        
+        <h1 class="mt-5">API Key Balances</h1>
+        <table class="table table-striped mt-3" id="balances-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>API Key</th>
+                    <th>Credits</th>
+                    <th>Usage</th>
+                </tr>
+            </thead>
+            <tbody id="balances-tbody">
+                <!-- Data will be inserted here by JavaScript -->
+            </tbody>
+        </table>
+    </div>
+    
+    <script>
+        $(document).ready(function() {
+            var socket = io();
+
+            socket.on('update_balances', function(data) {
+                var tbody = $("#balances-tbody");
+                tbody.empty(); // Clear the existing data
+                data.forEach(function(balance) {
+                    var row = "<tr>" +
+                        "<td>" + balance.number + "</td>" +
+                        "<td>" + balance.api_key + "</td>" +
+                        "<td>" + balance.credits + "</td>" +
+                        "<td>" + balance.usage + "</td>" +
+                        "</tr>";
+                    tbody.append(row);
+                });
+            });
+        });
+
+        function checkIp() {
+            const proxyIp = document.getElementById('proxy_ip').value;
+            fetch('/check_ip', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: 'proxy_ip=' + encodeURIComponent(proxyIp)
+            })
+            .then(response => response.json())
+            .then(data => {
+                const resultDiv = document.getElementById('result');
+                resultDiv.innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+    </script>
+</body>
+</html>
